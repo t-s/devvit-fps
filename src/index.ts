@@ -34,10 +34,40 @@ class Game {
     this.controls = new PointerLockControls(this.camera, this.renderer.domElement);
     this.scene.add(this.controls.getObject());
     
-    // Add click listener to lock controls
-    document.addEventListener('click', () => {
-      this.controls.lock();
-    });
+    // Check if device is mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (!isMobile) {
+      // Add click listener to lock controls on desktop
+      document.addEventListener('click', () => {
+        this.controls.lock();
+      });
+    } else {
+      // On mobile, we'll create a start button and then remove it
+      const startButton = document.createElement('div');
+      startButton.style.position = 'absolute';
+      startButton.style.top = '50%';
+      startButton.style.left = '50%';
+      startButton.style.transform = 'translate(-50%, -50%)';
+      startButton.style.padding = '20px 40px';
+      startButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      startButton.style.color = 'white';
+      startButton.style.fontSize = '24px';
+      startButton.style.fontWeight = 'bold';
+      startButton.style.borderRadius = '10px';
+      startButton.style.cursor = 'pointer';
+      startButton.style.zIndex = '1000';
+      startButton.textContent = 'TAP TO START';
+      
+      document.body.appendChild(startButton);
+      
+      startButton.addEventListener('touchstart', (event) => {
+        event.preventDefault();
+        startButton.style.display = 'none';
+        // Force controls to be active on mobile
+        this.controls.isLocked = true;
+      });
+    }
     
     // Initialize world first
     this.world = new World(this.scene);
@@ -46,8 +76,11 @@ class Game {
     this.player = new Player(this.controls);
     this.player.setWalls(this.world.getWalls());
     
-    // Initialize weapon
-    this.weapon = new Weapon(this.scene, this.camera);
+    // Initialize weapon and give it a reference to the world
+    this.weapon = new Weapon(this.scene, this.camera, this.world);
+    
+    // Connect weapon and player for mobile controls
+    this.weapon.setPlayer(this.player);
     
     // Set up lighting
     const ambientLight = new THREE.AmbientLight(0x404040);
@@ -83,6 +116,9 @@ class Game {
     
     // Update weapon
     this.weapon.update(delta);
+    
+    // Update world (for moving targets)
+    this.world.update(delta);
     
     // Render scene
     this.renderer.render(this.scene, this.camera);

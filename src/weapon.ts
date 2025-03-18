@@ -1,21 +1,51 @@
 import * as THREE from 'three';
+import { World } from './world';
+import { Player } from './player';
 
 export class Weapon {
   private scene: THREE.Scene;
   private camera: THREE.Camera;
+  private world: World;
+  private player: Player | null = null;
   private raycaster: THREE.Raycaster;
   private shootCooldown: number = 0;
+  private isMobile: boolean = false;
   
-  constructor(scene: THREE.Scene, camera: THREE.Camera) {
+  constructor(scene: THREE.Scene, camera: THREE.Camera, world: World) {
     this.scene = scene;
     this.camera = camera;
+    this.world = world;
     this.raycaster = new THREE.Raycaster();
     
-    // Add event listener for shooting
-    document.addEventListener('mousedown', this.shoot.bind(this));
+    // Check if device is mobile
+    this.isMobile = this.checkMobile();
+    
+    // Add event listener for shooting (only for desktop)
+    if (!this.isMobile) {
+      document.addEventListener('mousedown', this.shoot.bind(this));
+    }
     
     // Create crosshair
     this.createCrosshair();
+  }
+  
+  public setPlayer(player: Player): void {
+    this.player = player;
+    
+    // If we're on mobile, get access to the shoot button
+    if (this.isMobile && player) {
+      const shootButton = document.querySelector('div[style*="background-color: rgba(255, 0, 0"]');
+      if (shootButton) {
+        shootButton.addEventListener('touchstart', (event) => {
+          this.shoot();
+          event.preventDefault();
+        });
+      }
+    }
+  }
+  
+  private checkMobile(): boolean {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   }
   
   private createCrosshair(): void {
@@ -58,11 +88,21 @@ export class Weapon {
     if (intersects.length > 0) {
       const hitObject = intersects[0].object;
       
-      // If hit a target (red box), make it disappear
+      // If hit a target (red box), give it a new random position
       if (hitObject instanceof THREE.Mesh && 
           hitObject.material instanceof THREE.MeshStandardMaterial && 
           hitObject.material.color.getHex() === 0xff0000) {
-        this.scene.remove(hitObject);
+        
+        // Respawn target at a random position
+        this.world.respawnTarget(hitObject);
+        
+        // Add a small animation to make the hit visible
+        hitObject.scale.set(0.5, 0.5, 0.5); // Shrink it
+        
+        // Animate back to normal size
+        setTimeout(() => {
+          hitObject.scale.set(1, 1, 1);
+        }, 200);
       }
     }
   }
